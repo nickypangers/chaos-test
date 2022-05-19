@@ -47,13 +47,13 @@ const getSitemaps = async () => {
     });
 
     for (let i = 0; i < 1; i++) {
-      // for (let i = 0; i < urlList.length; i++) {
       const url = urlList[i];
       const urlArray = url.split("/");
       const index = urlArray.indexOf("fighters");
       const sitemapId = urlArray[index + 1];
 
       await db.collection("sitemaps").doc(sitemapId).set({
+        id: sitemapId,
         url: url,
       });
     }
@@ -145,4 +145,5 @@ const saveFighterLastModInfoToDb = async (snap, context) => {
 module.exports = {
   getSitemaps,
   saveFighterLastModInfoToDb,
+  getFighterLastModInfo,
 };

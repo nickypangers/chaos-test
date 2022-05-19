@@ -69,6 +69,10 @@ const getFighterData = async (id) => {
     }
 
     await db.collection("mma-fighters").doc(id).set(response.data);
+
+    await db.collection("last_mods").doc(id).update({
+      updated: true,
+    });
   } catch (err) {
     functions.logger.error(err);
   }

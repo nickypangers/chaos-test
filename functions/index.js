@@ -28,44 +28,26 @@ exports.getFighterId = functions.firestore
   .document("last_mods/{lastModId}")
   .onCreate(fighterApi.getFighterId);
 
-// exports.updateFighterData = functions.pubsub
-//   .schedule("* * * * *")
-//   .onRun(async (context) => {
-//     await db.collection("test").doc(moment().toString()).set({
-//       test: moment().toString(),
-//     });
+// exports.getFighterData = functions.firestore
+//   .document("last_mods/{lastModId}")
+//   .onUpdate(async (change, context) => {
+//     const newVal = change.after.data();
+
+//     if (newVal.updated) {
+//       return;
+//     }
+
+//     try {
+//       await fighterApi.getFighterData(newVal.id);
+
+//       await db.collection("last_mods").doc(newVal.id).update({
+//         updated: true,
+//       });
+//     } catch (err) {
+//       functions.logger.error("Error getting fighter data:", err);
+//       return;
+//     }
 //   });
-
-// exports.scheduledFunction = functions.pubsub
-//   .schedule("every 2 minutes")
-//   .onRun((context) => {
-//     functions.logger.info("This will be run every 2 minutes!");
-//     return null;
-//   });
-
-exports.getFighterData = functions.firestore
-  .document("last_mods/{lastModId}")
-  .onUpdate(async (change, context) => {
-    const newVal = change.after.data();
-
-    const now = moment().format("YYYY-MM-DD");
-    if (newVal.lastmod === now) {
-      if (newVal.updated) {
-        return;
-      }
-    }
-
-    try {
-      await fighterApi.getFighterData(newVal.id);
-
-      await db.collection("last_mods").doc(newVal.id).update({
-        updated: true,
-      });
-    } catch (err) {
-      functions.logger.error("Error getting fighter data:", err);
-      return;
-    }
-  });
 
 exports.getFighterLastModList = functions.https.onRequest(async (req, res) => {
   try {
@@ -109,26 +91,76 @@ exports.getFighterIdNeedsToBeUpdated = functions.https.onRequest(
   }
 );
 
-exports.checkFighterLastMod = functions.https.onRequest(async (req, res) => {
+exports.updateFighterLastMod = functions.https.onRequest(async (req, res) => {
   try {
     let last_run_id = null;
 
-    const last_runRef = await db.collection("last_run").doc("info").get();
-    if (!last_runRef.exists) {
-      await db.collection("last_run").doc("info").set({ id: null });
+    const last_runsRef = await db.collection("last_runs").doc("sitemaps").get();
+    if (!last_runsRef.exists) {
+      await db.collection("last_runs").doc("sitemaps").set({ id: null });
     } else {
-      last_run_id = await last_runRef.data().id;
+      last_run_id = await last_runsRef.data().id;
+    }
+
+    const sitemapsRef = await db.collection("sitemaps");
+    sitemapsRef.get().then(async (snapshot) => {
+      const sitemaps = [];
+      snapshot.forEach((doc) => {
+        sitemaps.push(doc.data());
+      });
+
+      if (last_run_id !== null) {
+        if (sitemaps[sitemaps.length - 1].id === last_run_id) {
+          last_run_id = null;
+        }
+      }
+
+      const currentIndex =
+        last_run_id === null
+          ? 0
+          : sitemaps.findIndex((doc) => doc.id === last_run_id);
+
+      if (currentIndex === -1) {
+        await db.collection("last_runs").doc("sitemaps").update({ id: null });
+        res.status(500).send({ success: false, err: "No sitemap found" });
+        return;
+      }
+
+      const toRunIndex =
+        currentIndex + 1 === sitemaps.length ? 0 : currentIndex + 1;
+
+      const toRunSitemap = sitemaps[toRunIndex];
+
+      await sitemapApi.getFighterLastModInfo(toRunSitemap.url);
+
+      await db
+        .collection("last_runs")
+        .doc("sitemaps")
+        .update({ id: toRunSitemap.id });
+
+      res.status(200).send({ success: true });
+    });
+  } catch (err) {
+    res.status(500).send({ success: false, err: err.message });
+  }
+});
+
+exports.updateFighterData = functions.https.onRequest(async (req, res) => {
+  try {
+    let last_run_id = null;
+
+    const last_runsRef = await db
+      .collection("last_runs")
+      .doc("mma-fighters")
+      .get();
+    if (!last_runsRef.exists) {
+      await db.collection("last_runs").doc("mma-fighters").set({ id: null });
+    } else {
+      last_run_id = await last_runsRef.data().id;
     }
 
     const last_modsRef = await db.collection("last_mods");
-
     last_modsRef.get().then(async (snapshot) => {
-      // if (last_run_id !== null) {
-      //   if (snapshot[snapshot.length - 1].data().id === last_run_id) {
-      //     last_run_id = null;
-      //   }
-      // }
-
       const docs = [];
 
       snapshot.forEach((doc) => {
@@ -165,8 +197,8 @@ exports.checkFighterLastMod = functions.https.onRequest(async (req, res) => {
       functions.logger.info(checkingList[checkingList.length - 1].id);
 
       await db
-        .collection("last_run")
-        .doc("info")
+        .collection("last_runs")
+        .doc("mma-fighters")
         .set({ id: checkingList[checkingList.length - 1].id });
 
       res.send({ success: true });
