@@ -28,27 +28,6 @@ exports.getFighterId = functions.firestore
   .document("last_mods/{lastModId}")
   .onCreate(fighterApi.getFighterId);
 
-// exports.getFighterData = functions.firestore
-//   .document("last_mods/{lastModId}")
-//   .onUpdate(async (change, context) => {
-//     const newVal = change.after.data();
-
-//     if (newVal.updated) {
-//       return;
-//     }
-
-//     try {
-//       await fighterApi.getFighterData(newVal.id);
-
-//       await db.collection("last_mods").doc(newVal.id).update({
-//         updated: true,
-//       });
-//     } catch (err) {
-//       functions.logger.error("Error getting fighter data:", err);
-//       return;
-//     }
-//   });
-
 exports.getFighterLastModList = functions.https.onRequest(async (req, res) => {
   try {
     const last_modsRef = await db.collection("last_mods");
@@ -185,8 +164,6 @@ exports.updateFighterData = functions.https.onRequest(async (req, res) => {
           return doc.id;
         }
       });
-
-      let checkedId = null;
 
       for (let i = 0; i < neededUpdateList.length; i++) {
         const id = neededUpdateList[i];

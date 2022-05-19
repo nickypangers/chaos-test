@@ -116,7 +116,8 @@ const getFighterLastModInfo = async (url) => {
 
       const infos = result.urlset.url;
 
-      for (let i = 0; i < 2; i++) {
+      for (let i = 0; i < 3; i++) {
+        // for (let i = 0; i < Math.ceil(infos.length / 10); i++) {
         const infoSelection = infos.slice(i * 10, (i + 1) * 10);
         const promises = infoSelection.map((info) =>
           getFighterLastModInfoFromSource(info)
